@@ -9,9 +9,12 @@ import org.apache.kudu.client.CreateTableOptions;
 import org.apache.kudu.client.Insert;
 import org.apache.kudu.client.KuduClient;
 import org.apache.kudu.client.KuduException;
+import org.apache.kudu.client.KuduScanner;
 import org.apache.kudu.client.KuduSession;
 import org.apache.kudu.client.KuduTable;
 import org.apache.kudu.client.PartialRow;
+import org.apache.kudu.client.RowResult;
+import org.apache.kudu.client.RowResultIterator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -38,26 +41,24 @@ public class AddSingleRecord {
     try {
     	
     	AddSingleRecord movieTable = new AddSingleRecord();
-    	movieTable.drop(client);
-    	movieTable.create(client);
-
+    		
+    	if (!client.tableExists("movie")) {
+    		movieTable.create(client);
+    	}
+    	
     	movieTable.populateSingleRow(client);
+    	
+    	movieTable.queryData(client);
+    	
     } finally {
     	client.shutdown();
     }
-
-
-    
-    
-  }
-  	
-  private void drop(KuduClient client) throws KuduException {
-	  client.deleteTable("movie");
-	  LOG.info("successfully deleted table");
+   
   }
   
   private void create(KuduClient client) throws KuduException {
 
+	  	LOG.info("in create");
 	    // Create columns for the table.
 	    ColumnSchema movieId = new ColumnSchema.ColumnSchemaBuilder("movie_id", Type.INT32).key(true).build();
 	    ColumnSchema movieName = new ColumnSchema.ColumnSchemaBuilder("movie_name", Type.STRING).build();
@@ -112,6 +113,22 @@ public class AddSingleRecord {
 	  
   }
   
+  private void queryData(KuduClient client) throws KuduException {
+	  
+
+	  KuduTable table = client.openTable("movie");
+
+	  KuduScanner kuduScanner = client.newScannerBuilder(table).build();
+	  while (kuduScanner.hasMoreRows()) {
+		  RowResultIterator rows = kuduScanner.nextRows();
+		  while (rows.hasNext()) {
+			  RowResult row = rows.next();
+			  LOG.info("row value " + row.rowToString());
+		  }
+			  
+	  }
+	  
+  }
     
   
 }
